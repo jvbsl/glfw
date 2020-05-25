@@ -23,7 +23,8 @@
 //
 //========================================================================
 
-#include <glad/glad.h>
+#include <glad/gl.h>
+#define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
 #define NK_IMPLEMENTATION
@@ -48,7 +49,6 @@ static void error_callback(int error, const char* description)
 
 int main(int argc, char** argv)
 {
-    GLFWmonitor* monitor = NULL;
     GLFWwindow* window;
     struct nk_context* nk;
     struct nk_font_atlas* atlas;
@@ -58,6 +58,9 @@ int main(int argc, char** argv)
     if (!glfwInit())
         exit(EXIT_FAILURE);
 
+    glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE);
+    glfwWindowHint(GLFW_WIN32_KEYBOARD_MENU, GLFW_TRUE);
+
     window = glfwCreateWindow(400, 400, "Opacity", NULL, NULL);
     if (!window)
     {
@@ -66,7 +69,7 @@ int main(int argc, char** argv)
     }
 
     glfwMakeContextCurrent(window);
-    gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
+    gladLoadGL(glfwGetProcAddress);
     glfwSwapInterval(1);
 
     nk = nk_glfw3_init(window, NK_GLFW3_INSTALL_CALLBACKS);

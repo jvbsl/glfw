@@ -1,8 +1,8 @@
 //========================================================================
-// GLFW 3.3 - www.glfw.org
+// GLFW 3.4 - www.glfw.org
 //------------------------------------------------------------------------
 // Copyright (c) 2002-2006 Marcus Geelnard
-// Copyright (c) 2006-2016 Camilla Löwy <elmindreda@glfw.org>
+// Copyright (c) 2006-2018 Camilla Löwy <elmindreda@glfw.org>
 //
 // This software is provided 'as-is', without any express or implied
 // warranty. In no event will the authors be held liable for any damages
@@ -23,6 +23,8 @@
 // 3. This notice may not be removed or altered from any source
 //    distribution.
 //
+//========================================================================
+// Please use C89 style variable declarations in this file because VS 2010
 //========================================================================
 
 #include "internal.h"
@@ -56,37 +58,6 @@ static _GLFWinitconfig _glfwInitHints =
         GLFW_TRUE   // macOS bundle chdir
     }
 };
-
-// Returns a generic string representation of the specified error
-//
-static const char* getErrorString(int code)
-{
-    switch (code)
-    {
-        case GLFW_NOT_INITIALIZED:
-            return "The GLFW library is not initialized";
-        case GLFW_NO_CURRENT_CONTEXT:
-            return "There is no current context";
-        case GLFW_INVALID_ENUM:
-            return "Invalid argument for enum parameter";
-        case GLFW_INVALID_VALUE:
-            return "Invalid value for parameter";
-        case GLFW_OUT_OF_MEMORY:
-            return "Out of memory";
-        case GLFW_API_UNAVAILABLE:
-            return "The requested API is unavailable";
-        case GLFW_VERSION_UNAVAILABLE:
-            return "The requested API version is unavailable";
-        case GLFW_PLATFORM_ERROR:
-            return "An undocumented platform-specific error occurred";
-        case GLFW_FORMAT_UNAVAILABLE:
-            return "The requested format is unavailable";
-        case GLFW_NO_WINDOW_CONTEXT:
-            return "The specified window has no context";
-        default:
-            return "ERROR: UNKNOWN GLFW ERROR";
-    }
-}
 
 // Terminate the library
 //
@@ -150,6 +121,30 @@ char* _glfw_strdup(const char* source)
     return result;
 }
 
+float _glfw_fminf(float a, float b)
+{
+    if (a != a)
+        return b;
+    else if (b != b)
+        return a;
+    else if (a < b)
+        return a;
+    else
+        return b;
+}
+
+float _glfw_fmaxf(float a, float b)
+{
+    if (a != a)
+        return b;
+    else if (b != b)
+        return a;
+    else if (a > b)
+        return a;
+    else
+        return b;
+}
+
 
 //////////////////////////////////////////////////////////////////////////
 //////                         GLFW event API                       //////
@@ -173,7 +168,32 @@ void _glfwInputError(int code, const char* format, ...)
         description[sizeof(description) - 1] = '\0';
     }
     else
-        strcpy(description, getErrorString(code));
+    {
+        if (code == GLFW_NOT_INITIALIZED)
+            strcpy(description, "The GLFW library is not initialized");
+        else if (code == GLFW_NO_CURRENT_CONTEXT)
+            strcpy(description, "There is no current context");
+        else if (code == GLFW_INVALID_ENUM)
+            strcpy(description, "Invalid argument for enum parameter");
+        else if (code == GLFW_INVALID_VALUE)
+            strcpy(description, "Invalid value for parameter");
+        else if (code == GLFW_OUT_OF_MEMORY)
+            strcpy(description, "Out of memory");
+        else if (code == GLFW_API_UNAVAILABLE)
+            strcpy(description, "The requested API is unavailable");
+        else if (code == GLFW_VERSION_UNAVAILABLE)
+            strcpy(description, "The requested API version is unavailable");
+        else if (code == GLFW_PLATFORM_ERROR)
+            strcpy(description, "A platform-specific error occurred");
+        else if (code == GLFW_FORMAT_UNAVAILABLE)
+            strcpy(description, "The requested format is unavailable");
+        else if (code == GLFW_NO_WINDOW_CONTEXT)
+            strcpy(description, "The specified window has no context");
+        else if (code == GLFW_CURSOR_UNAVAILABLE)
+            strcpy(description, "The specified cursor shape is unavailable");
+        else
+            strcpy(description, "ERROR: UNKNOWN GLFW ERROR");
+    }
 
     if (_glfw.initialized)
     {

@@ -2084,9 +2084,15 @@ void _glfwPlatformDestroyWindow(_GLFWwindow* window)
 
     if (window->x11.handle)
     {
-        XDeleteContext(_glfw.x11.display, window->x11.handle, _glfw.x11.context);
-        XUnmapWindow(_glfw.x11.display, window->x11.handle);
-        XDestroyWindow(_glfw.x11.display, window->x11.handle);
+        if (window->x11.external)
+        {
+        }
+        else
+        {
+            XDeleteContext(_glfw.x11.display, window->x11.handle, _glfw.x11.context);
+            XUnmapWindow(_glfw.x11.display, window->x11.handle);
+            XDestroyWindow(_glfw.x11.display, window->x11.handle);
+        }
         window->x11.handle = (Window) 0;
     }
 
@@ -3238,5 +3244,146 @@ GLFWAPI const char* glfwGetX11SelectionString(void)
 {
     _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
     return getSelectionString(_glfw.x11.PRIMARY);
+}
+
+
+GLFWAPI GLFWwindow* glfwAttachX11Window(Window handle, GLFWwindow* share)
+{
+    _GLFWfbconfig fbconfig;
+    _GLFWctxconfig ctxconfig;
+    _GLFWwndconfig wndconfig;
+    _GLFWwindow* window;
+
+    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
+
+    fbconfig  = _glfw.hints.framebuffer;
+    ctxconfig = _glfw.hints.context;
+    wndconfig = _glfw.hints.window;
+
+    ctxconfig.share = (_GLFWwindow*) share;
+    if (ctxconfig.share)
+    {
+        if (ctxconfig.client == GLFW_NO_API ||
+            ctxconfig.share->context.client == GLFW_NO_API)
+        {
+            _glfwInputError(GLFW_NO_WINDOW_CONTEXT, NULL);
+            return NULL;
+        }
+    }
+
+    if (!_glfwIsValidContextConfig(&ctxconfig))
+        return NULL;
+
+    window = calloc(1, sizeof(_GLFWwindow));
+    window->next = _glfw.windowListHead;
+    _glfw.windowListHead = window;
+
+    window->autoIconify = wndconfig.autoIconify;
+    window->cursorMode  = GLFW_CURSOR_NORMAL;
+
+    window->minwidth    = GLFW_DONT_CARE;
+    window->minheight   = GLFW_DONT_CARE;
+    window->maxwidth    = GLFW_DONT_CARE;
+    window->maxheight   = GLFW_DONT_CARE;
+    window->numer       = GLFW_DONT_CARE;
+    window->denom       = GLFW_DONT_CARE;
+
+    window->x11.handle = handle;
+    // SetPropW(window->win32.handle, L"GLFW", window);
+
+    window->x11.external = GLFW_TRUE;
+    // window->win32.externalWindowProc =
+    //     GetWindowLongPtrW(window->win32.handle, GWLP_WNDPROC);
+    // SetWindowLongPtrW(window->win32.handle, GWLP_WNDPROC, (LONG_PTR) windowProc);
+
+    {
+        Atom* states = NULL;
+        unsigned long i, count;
+
+        count = _glfwGetWindowPropertyX11(window->x11.handle,
+                                          _glfw.x11.NET_WM_STATE,
+                                          XA_ATOM,
+                                          (unsigned char**) &states);
+        for (i = 0;i<count;i++)
+        {
+            if (_glfw.x11.NET_WM_STATE_ABOVE && states[i] == _glfw.x11.NET_WM_STATE_ABOVE)
+                window->floating = GLFW_TRUE;
+            else if ((_glfw.x11.NET_WM_STATE_MAXIMIZED_VERT && states[i] == _glfw.x11.NET_WM_STATE_MAXIMIZED_VERT) ||
+                     (_glfw.x11.NET_WM_STATE_MAXIMIZED_HORZ && states[i] == _glfw.x11.NET_WM_STATE_MAXIMIZED_HORZ))
+                window->x11.maximized = GLFW_TRUE;
+        }
+
+        if (states)
+            XFree(states);
+
+        long supplied;
+        XSizeHints* hints = XAllocSizeHints();
+        window->resizable = GLFW_TRUE;
+        if (XGetWMNormalHints(_glfw.x11.display, window->x11.handle, hints, &supplied) && (hints->flags & (PMinSize | PMaxSize)))
+        {
+            window->resizable = hints->min_width != hints->max_width || hints->min_height == hints->max_height;
+        }
+
+        XFree(hints);
+        
+        struct
+        {
+            unsigned long flags;
+            unsigned long functions;
+            unsigned long decorations;
+            long input_mode;
+            unsigned long status;
+        } *motifHints;
+        if (3 <= _glfwGetWindowPropertyX11(window->x11.handle,
+                                          _glfw.x11.MOTIF_WM_HINTS,
+                                          _glfw.x11.MOTIF_WM_HINTS,
+                                          (unsigned char**) &motifHints))
+        {
+            if (motifHints->decorations & MWM_DECOR_ALL)
+            {
+                window->decorated = GLFW_TRUE;
+            }
+        }
+        if (states)
+            XFree(motifHints);
+
+        window->x11.iconified = _glfwPlatformWindowIconified(window);
+    }
+
+    if (ctxconfig.client != GLFW_NO_API)
+    {
+        if (ctxconfig.source == GLFW_NATIVE_CONTEXT_API)
+        {
+            if (!_glfwInitGLX())
+                return GLFW_FALSE;
+            if (!_glfwCreateContextGLX(window, &ctxconfig, &fbconfig))
+                return GLFW_FALSE;
+        }
+        else if (ctxconfig.source == GLFW_EGL_CONTEXT_API)
+        {
+            if (!_glfwInitEGL())
+                return GLFW_FALSE;
+            if (!_glfwCreateContextEGL(window, &ctxconfig, &fbconfig))
+                return GLFW_FALSE;
+        }
+        else if (ctxconfig.source == GLFW_OSMESA_CONTEXT_API)
+        {
+            if (!_glfwInitOSMesa())
+                return GLFW_FALSE;
+            if (!_glfwCreateContextOSMesa(window, &ctxconfig, &fbconfig))
+                return GLFW_FALSE;
+        }
+    }
+
+    if (ctxconfig.client != GLFW_NO_API)
+    {
+        if (!_glfwRefreshContextAttribs(window, &ctxconfig))
+        {
+            glfwDestroyWindow((GLFWwindow*) window);
+            return NULL;
+        }
+    }
+
+    return (GLFWwindow*) window;
 }
 

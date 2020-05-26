@@ -367,6 +367,34 @@ GLFWAPI void glfwSetX11SelectionString(const char* string);
  *  @ingroup native
  */
 GLFWAPI const char* glfwGetX11SelectionString(void);
+
+/*! @brief Wraps an existing X11-`Window` in a new GLFW window object.
+ *
+ *  This function creates a GLFW window object and its associated OpenGL or
+ *  OpenGL ES context for an existing `Window`.  The `Window` is not destroyed by
+ *  GLFW.
+ *
+ *  @param[in] window The `Window` to attach to the window object.
+ *  @param[in] share The window whose context to share resources with, or `NULL`
+ *  to not share resources.
+ *  @return The handle of the created window, or `NULL` if an
+ *  [error](@ref error_handling) occurred.
+ *
+ *  @errors Possible errors include @ref GLFW_NOT_INITIALIZED, @ref
+ *  GLFW_INVALID_ENUM, @ref GLFW_INVALID_VALUE, @ref GLFW_API_UNAVAILABLE, @ref
+ *  GLFW_VERSION_UNAVAILABLE, @ref GLFW_FORMAT_UNAVAILABLE and @ref
+ *  GLFW_PLATFORM_ERROR.
+ *
+ *  @thread_safety This function may be called from any thread.
+ *
+ *  @sa @ref window_creation
+ *  @sa @ref glfwCreateWindow
+ *
+ *  @since Added in version 3.3.
+ *
+ *  @ingroup native
+ */
+GLFWAPI GLFWwindow* glfwAttachX11Window(Window window, GLFWwindow* share);
 #endif
 
 #if defined(GLFW_EXPOSE_NATIVE_GLX)

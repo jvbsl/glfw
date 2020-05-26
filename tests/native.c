@@ -25,9 +25,14 @@
 
 #define UNICODE
 
-#include <glad/glad.h>
+#include <glad/gl.h>
 #include <GLFW/glfw3.h>
-#define GLFW_EXPOSE_NATIVE_WIN32
+#if WIN32
+    #define GLFW_EXPOSE_NATIVE_WIN32
+#elif GLFW_X11
+asdf
+#endif
+    #define GLFW_EXPOSE_NATIVE_X11
 #include <GLFW/glfw3native.h>
 
 #include <stdio.h>
@@ -38,61 +43,41 @@ static void error_callback(int error, const char* description)
     fprintf(stderr, "Error: %s\n", description);
 }
 
-static LRESULT CALLBACK windowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-    // This will only be used until glfwAttachWin32Window
-    return DefWindowProcW(hWnd, uMsg, wParam, lParam);
-}
 
-int main(void)
+int main(int argc, char** argv)
 {
     GLFWwindow* window;
-    WNDCLASSEX wc;
-    HWND handle;
-
-    ZeroMemory(&wc, sizeof(wc));
-    wc.cbSize        = sizeof(wc);
-    wc.style         = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
-    wc.lpfnWndProc   = (WNDPROC) windowProc;
-    wc.hInstance     = GetModuleHandleW(NULL);
-    wc.hCursor       = LoadCursorW(NULL, IDC_ARROW);
-    wc.lpszClassName = L"SomeKindOfWindowClassName";
-
-    if (!RegisterClassExW(&wc))
-        exit(EXIT_FAILURE);
-
-    handle = CreateWindowExW(WS_EX_APPWINDOW,
-                             L"SomeKindOfWindowClassName",
-                             L"HWND attachment test",
-                             WS_OVERLAPPEDWINDOW | WS_VISIBLE,
-                             CW_USEDEFAULT, CW_USEDEFAULT,
-                             600, 400,
-                             NULL,
-                             NULL,
-                             GetModuleHandleW(NULL),
-                             NULL);
-
-    if (!handle)
-        exit(EXIT_FAILURE);
-
+    GLFWwindow* externalWindow;
+    
     glfwSetErrorCallback(error_callback);
-
     if (!glfwInit())
     {
-        DestroyWindow(handle);
         exit(EXIT_FAILURE);
     }
+    
+    externalWindow = glfwCreateWindow( 300, 300, "Gears", NULL, NULL );
 
-    window = glfwAttachWin32Window(handle, NULL);
+    if (!externalWindow)
+        exit(EXIT_FAILURE);
+#if WIN32
+    HWND handle = glfwGetWin32Window(externalWindow);
+    if (handle)
+        window = glfwAttachWin32Window(handle, NULL);
+#else
+    Window handle = glfwGetX11Window(externalWindow);
+    if (handle)
+        window = glfwAttachX11Window(handle, NULL);
+#endif
+
     if (!window)
     {
         glfwTerminate();
-        DestroyWindow(handle);
+        glfwDestroyWindow(externalWindow);
         exit(EXIT_FAILURE);
     }
 
     glfwMakeContextCurrent(window);
-    gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
+    gladLoadGL(glfwGetProcAddress);
     glfwSwapInterval(1);
 
     while (!glfwWindowShouldClose(window))
@@ -103,7 +88,8 @@ int main(void)
     }
 
     glfwTerminate();
-    DestroyWindow(handle);
+    glfwDestroyWindow(externalWindow);
     exit(EXIT_SUCCESS);
+    return 0;
 }
 
